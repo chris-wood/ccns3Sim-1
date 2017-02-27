@@ -55,7 +55,7 @@
 
 import re
 
-def substTestForModel(x): 
+def substTestForModel(x):
     # Only do this for paths that begin with 'model/'
 	if (x.find('model/', 0) == -1):
 		return None
@@ -63,13 +63,13 @@ def substTestForModel(x):
 	else:
 		# substitude 'test' for 'model' and add 'test_' before the file name
 		# for example 'model/node/ccnx-route.cc' will become 'test/node/test_ccnx-route.cc'.
-		
+
 		y = x.replace('model', 'test')
 		m = re.search('(.*/)+(.+)', y)
 		filename = m.group(2)
 		z = y.replace(filename, 'test_' + filename)
 		return z
-		
+
 def isNotNone(x):
 	return x is not None
 
@@ -80,6 +80,7 @@ def build(bld):
         'applications/ccnx-application.cc',
         'applications/producer-consumer/ccnx-consumer.cc',
         'applications/producer-consumer/ccnx-producer.cc',
+        'applications/producer-consumer/ccnx-monitor.cc',
         'applications/producer-consumer/ccnx-producer-helper.cc',
         'applications/producer-consumer/ccnx-consumer-helper.cc',
         'applications/producer-consumer/ccnx-content-repository.cc',
@@ -111,7 +112,7 @@ def build(bld):
         'model/crypto/ccnx-signer.cc',
         'model/crypto/ccnx-verifier.cc',
         'model/crypto/hashers/ccnx-hasher-fnv1a.cc',
- 
+
         # Validation
         'model/validation/ccnx-validation.cc',
         # node
@@ -190,14 +191,14 @@ def build(bld):
         'helper/ccnx-routing-helper.cc',
         'helper/ccnx-layer3-helper.cc',
         'helper/ccnx-forwarding-helper.cc',
-        'helper/ccnx-stack-helper.cc',      
+        'helper/ccnx-stack-helper.cc',
         ]
 
 	# Create the list of unit test names from the list of model/*.cc names.  you must have
 	# a unit test file for every .cc file under model/.
     module_test = bld.create_ns3_module_test_library('ccns3Sim')
     module_test.source = filter(isNotNone, map(substTestForModel, module.source))
-    
+
     module_test.source += [
     	'test/applications/producer-consumer/test_ccnx-content-repository.cc',
     	'test/node/test_ccnx-delay-queue.cc',
@@ -209,6 +210,7 @@ def build(bld):
         'applications/ccnx-application.h',
         'applications/producer-consumer/ccnx-consumer.h',
         'applications/producer-consumer/ccnx-producer.h',
+        'applications/producer-consumer/ccnx-monitor.h',
         'applications/producer-consumer/ccnx-consumer-helper.h',
         'applications/producer-consumer/ccnx-producer-helper.h',
         'applications/producer-consumer/ccnx-content-repository.h',
@@ -254,7 +256,7 @@ def build(bld):
         'model/node/standard/ccnx-connection-l4.h',
         'model/node/standard/ccnx-standard-layer3.h',
         'model/node/standard/ccnx-standard-layer3-helper.h',
-        
+
         # forwarding
         'model/forwarding/ccnx-content-store.h',
         'model/forwarding/ccnx-null-content-store-factory.h',

@@ -82,6 +82,38 @@
 
 namespace ns3 {
 namespace ccnx {
+
+class PacketProbe
+{
+public:
+    int m_count;
+    int m_index;
+    Ptr<CCNxName> m_hitName;
+    Ptr<CCNxName> m_missName;
+    bool m_hitWaiting;
+    bool m_missWaiting;
+
+    Time m_sendTime;
+    Time m_hitTime;
+    Time m_missTime;
+
+    PacketProbe(int index) {
+        m_index = index;
+    };
+
+    bool IsCacheHit(int64_t epsilonMillis) const
+    {
+        Time hitDelta = m_hitTime - m_sendTime;
+        Time missDelta = m_missTime - m_sendTime;
+        Time delta = hitDelta - missDelta;
+        int64_t deltaMillis = delta.GetMilliSeconds();
+        if (deltaMillis < 0) {
+            deltaMillis *= -1;
+        }
+        return deltaMillis < epsilonMillis;
+    };
+};
+
 /**
   * @ingroup ccnx-apps-prod-cons
   *
@@ -163,6 +195,8 @@ private:
    * the network.
    */
   bool FindOutStandingInterest (Ptr<const CCNxName> interest);
+
+  void SendInterestForName (Ptr<CCNxName> name);
   /**
    * THis is a private method to pick a random name CCNxContentRepository::GetRandomName() convert this into an
    * interest and then send it out of the portal m_consumerPortal. This method is invoked periodically determined by
@@ -187,7 +221,9 @@ private:
   	OutstandingRequestType m_outstandingRequests;
 #endif
   Ptr<CCNxContentRepository> m_globalContentRepositoryPrefix;
-  std::map<std::string, int> m_countMap;
+  std::map<int, int> m_countMap;
+
+  std::vector<PacketProbe *> m_probes;
 
   /**
    * Statistics and a show method to display them.
@@ -200,7 +236,6 @@ private:
   uint64_t m_count;
   uint64_t m_sum;
   uint64_t m_sumSquare;
-  bool m_waiting;
 };
 }
 }

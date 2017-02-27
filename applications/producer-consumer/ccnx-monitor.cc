@@ -90,7 +90,6 @@ CCNxMonitorConsumer::CCNxMonitorConsumer ()
   m_count = 0;
   m_sum = 0;
   m_sumSquare = 0;
-  m_waiting = false;
 }
 
 CCNxMonitorConsumer::~CCNxMonitorConsumer ()
@@ -108,10 +107,11 @@ CCNxMonitorConsumer::StartApplication (void)
   m_consumerPortal->SetRecvCallback (
     MakeCallback (&CCNxMonitorConsumer::ReceiveCallback, this));
 
-  m_requestIntervalTimer = Timer (Timer::REMOVE_ON_DESTROY);
-  m_requestIntervalTimer.SetFunction (&CCNxMonitorConsumer::GenerateTraffic, this);
-  m_requestIntervalTimer.SetDelay (m_requestInterval);
-  m_requestIntervalTimer.Schedule ();
+  // m_requestIntervalTimer = Timer (Timer::REMOVE_ON_DESTROY);
+  // m_requestIntervalTimer.SetFunction (&CCNxMonitorConsumer::GenerateTraffic, this);
+  // m_requestIntervalTimer.SetDelay (m_requestInterval);
+  // m_requestIntervalTimer.ScheduleOnce ();
+  Simulator::Schedule(Seconds(1), &CCNxMonitorConsumer::GenerateTraffic, this);
 }
 
 void
@@ -142,6 +142,18 @@ CCNxMonitorConsumer::SetContentRepository (
 {
   NS_LOG_FUNCTION (this << repositoryPtr);
   m_globalContentRepositoryPrefix = repositoryPtr;
+
+  // Create the packet probe container
+  for (int i = 0; i < m_globalContentRepositoryPrefix->GetContentObjectCount(); i++) {
+      PacketProbe *probe = new PacketProbe(i);
+      probe->m_hitWaiting = false;
+      probe->m_missWaiting = false;
+      probe->m_count = 0;
+      probe->m_hitName = NULL;
+      probe->m_missName = NULL;
+
+      m_probes.push_back(probe);
+  }
 }
 
 void
@@ -181,6 +193,9 @@ CCNxMonitorConsumer::ReceiveCallback (Ptr<CCNxPortal> portal)
 {
   NS_LOG_FUNCTION (this << portal);
   Ptr<CCNxPacket> packet;
+
+  Time receiveTime = Simulator::Now ();
+
   while ((packet = portal->Recv ()))
     {
       NS_LOG_DEBUG (
@@ -195,6 +210,33 @@ CCNxMonitorConsumer::ReceiveCallback (Ptr<CCNxPortal> portal)
               NS_LOG_INFO (
                 "CCNxMonitorConsumer:Received content back for Node " << GetNode ()->GetId () << *name);
               RemoveOutStandingInterest (name);
+
+              // We previously sent an interest for this. Find out which one it is for.
+              for (int i = 0; i < m_probes.size(); i++) {
+                  PacketProbe *probe = m_probes[i];
+                  if (name->Equals(*probe->m_hitName)) {
+                      probe->m_hitTime = receiveTime;
+                      probe->m_hitWaiting = false;
+                  }
+                  if (name->Equals(*probe->m_hitName)) {
+                      probe->m_missTime = receiveTime;
+                      probe->m_missWaiting = false;
+                  }
+
+                  if (!probe->m_hitWaiting && !probe->m_missWaiting) {
+                      // Bump up the count as needed
+                      // XXX: pass in epsilon as a parameter
+                      int epsilon = 1000;
+                      if (probe->IsCacheHit(epsilon)) {
+                          m_countMap[probe->m_index]++;
+                      }
+
+                      // Sleep until we can probe for this packet again
+                      // XXX: pass in t_c as a parameter
+                      int t_c = 1;
+                      Simulator::Schedule(Seconds(t_c), &CCNxMonitorConsumer::GenerateTraffic, this);
+                  }
+              }
             }
           else
             {
@@ -245,24 +287,34 @@ CCNxMonitorConsumer::GenerateTraffic ()
 {
   NS_LOG_FUNCTION_NOARGS ();
 
-  Ptr<const CCNxName> name = m_globalContentRepositoryPrefix->GetRandomName (m_count++);
+  Ptr<const CCNxName> name = m_globalContentRepositoryPrefix->GetNameAtIndex (m_count);
   if (name)
     {
       // Build the random segment
       std::string suffix = generateRandomString(32);
-      Ptr<CCNxNameSegment> suffixSegment = Create<CCNxNameSegment>(CCNxNameSegment_Name, suffix;
+      Ptr<CCNxNameSegment> suffixSegment = Create<CCNxNameSegment>(CCNxNameSegment_Name, suffix);
 
       // Build the probe interest names
-      Ptr<CCNxName> m_hitName = Create<CCNxName>(name);
-      Ptr<CCNxName> m_missName = Create<CCNxName>(name);
-      missName->AppendSegment(suffixSegment);
+      PacketProbe *probe = m_probes[m_count];
 
-      // XXX: save these in the map
+      probe->m_hitName = Create<CCNxName>(*name);
+      probe->m_missName = Create<CCNxName>(*name);
+      probe->m_missName->AppendSegment(suffixSegment);
+
+      // Stamp this packet probe
+      Time sendTime = Simulator::Now ();
+      probe->m_sendTime = sendTime;
+      probe->m_hitTime = sendTime;
+      probe->m_missTime = sendTime;
+      probe->m_hitWaiting = true;
+      probe->m_missWaiting = true;
 
       // Send both interests
-      SendInterestForName(m_hitName);
-      SendInterestForName(m_missName);
-      m_waiting = true;
+      this->SendInterestForName(probe->m_hitName);
+      this->SendInterestForName(probe->m_missName);
+
+      // Bump the send count
+      m_count++;
     }
   else
     {
