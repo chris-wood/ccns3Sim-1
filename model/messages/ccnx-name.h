@@ -128,6 +128,11 @@ public:
   Ptr<const CCNxNameSegment> GetSegment (size_t index) const;
 
   /**
+   * Append the given segment to this name and return the new number of segments.
+   */
+  int AppendSegment (Ptr<const CCNxNameSegment> segment);
+
+  /**
    * Determines if the name is equal to the other name.  For two names to be equal, they
    * must be the same length and each name segment must be of the same type and value.
    */

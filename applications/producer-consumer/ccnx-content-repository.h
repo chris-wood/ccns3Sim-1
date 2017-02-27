@@ -123,6 +123,12 @@ public:
   Ptr <const CCNxName> GetRandomName (void);
 
   /**
+   * This method returns the i-th Name from the repository.
+   *
+   */
+   Ptr<const CCNxName> GetNameAtIndex (uint32_t index);
+
+  /**
    * This method returns the prefix with which the repository was constructed.
    */
   Ptr <const CCNxName> GetRepositoryPrefix (void) const;

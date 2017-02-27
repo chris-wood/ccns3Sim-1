@@ -99,6 +99,13 @@ CCNxName::GetSegment (size_t index) const
   return m_segments[index];
 }
 
+int
+CCNxName::AppendSegment (Ptr<const CCNxNameSegment> segment)
+{
+    m_segments.push_back (segment);
+    return m_segments.size ();
+}
+
 
 bool
 CCNxName::Equals (const CCNxName &other) const
@@ -236,4 +243,3 @@ ns3::ccnx::operator<< (std::ostream& os, CCNxName const& name)
     }
   return os;
 }
-

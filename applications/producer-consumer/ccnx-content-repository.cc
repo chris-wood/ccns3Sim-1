@@ -151,3 +151,11 @@ CCNxContentRepository::GetRandomName ()
   return randName;
 }
 
+Ptr<const CCNxName>
+CCNxContentRepository::GetNameAtIndex (uint32_t index)
+{
+  NS_LOG_FUNCTION (this);
+  Ptr <const CCNxName> name = m_contentObjects[index % m_contentObjects.size ()]->GetName ();
+  NS_LOG_DEBUG ("name is " << *name);
+  return name;
+}
