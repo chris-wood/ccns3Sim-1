@@ -244,8 +244,7 @@ CCNxMonitor::ReceiveCallback (Ptr<CCNxPortal> portal)
 
                   // Sleep until we can probe for this packet again
                   // XXX: pass in t_c as a parameter
-                  int t_c = 5;
-                //   std::cout << "recording packet probe measurement:" << *name << "   " << *probe->m_hitName[index] << std::endl;
+                  int t_c = 1; // XXX: problem.
                   Simulator::Schedule(Seconds(t_c), &CCNxMonitor::GenerateTraffic, this);
               }
             }

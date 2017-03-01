@@ -170,7 +170,7 @@ RunSimulation (uint32_t nPrefixes)
   monitorContainer.Start (Seconds (1.0));
   monitorContainer.Stop (Seconds (100.0));
 
-  Simulator::Stop (Seconds (102));
+  Simulator::Stop (Seconds (99));
 
   // Run the simulator and execute all the events
   Simulator::Run ();
