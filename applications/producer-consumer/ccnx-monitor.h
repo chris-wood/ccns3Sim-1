@@ -53,8 +53,8 @@
  * contact PARC at cipo@parc.com for more information or visit http://www.ccnx.org
  */
 
-#ifndef CCNS3_CCNxMonitorConsumer_H
-#define CCNS3_CCNxMonitorConsumer_H
+#ifndef CCNS3_CCNxMonitor_H
+#define CCNS3_CCNxMonitor_H
 
 #include <map>
 #include <vector>
@@ -83,19 +83,23 @@
 namespace ns3 {
 namespace ccnx {
 
-class PacketProbe
+class PacketProbe : public SimpleRefCount<PacketProbe>
 {
 public:
     int m_count;
+    int m_limit;
     int m_index;
-    Ptr<CCNxName> m_hitName;
-    Ptr<CCNxName> m_missName;
+    std::vector< Ptr<CCNxName> > m_hitName;
+    std::vector< Ptr<CCNxName> > m_missName;
     bool m_hitWaiting;
     bool m_missWaiting;
 
     Time m_sendTime;
     Time m_hitTime;
     Time m_missTime;
+
+    std::vector<bool> m_hits;
+    std::vector<bool> m_misses;
 
     PacketProbe(int index) {
         m_index = index;
@@ -125,20 +129,20 @@ public:
   *
   */
 
-class CCNxMonitorConsumer : public CCNxApplication
+class CCNxMonitor : public CCNxApplication
 {
 public:
   static TypeId GetTypeId (void);
   /**
    * \brief virtual constructor
-   * \returns pointer to clone of this CCNxMonitorConsumer
+   * \returns pointer to clone of this CCNxMonitor
    * This method is used by helper to generate interests.
    */
-  CCNxMonitorConsumer (void);
+  CCNxMonitor (void);
   /**
-   * Virtual method to destroy an instance of a CCNxMonitorConsumer
+   * Virtual method to destroy an instance of a CCNxMonitor
    */
-  virtual ~CCNxMonitorConsumer ();
+  virtual ~CCNxMonitor ();
 
   /*
     * SetContentRepository:
@@ -155,13 +159,15 @@ public:
     *     uint32_t size = 124 ;
     *     uint32_t count = 10;
     *     Ptr <CCNxContentRepository> globalContentRepository = Create <CCNxContentRepository>(prefix,size,count);
-    *     Ptr <CCNxMonitorConsumer> ccnxProducer = Create<CCNxMonitorConsumer>();
+    *     Ptr <CCNxMonitor> ccnxProducer = Create<CCNxMonitor>();
     *     ccnxProducer->SetContentRepository(globalContentRepository);
     * }
     * @endcode
     *
     */
   void SetContentRepository (Ptr<CCNxContentRepository> repositoryPtr);
+
+  std::vector<int> GetObservedHistogram();
 
 private:
   /**
@@ -196,14 +202,16 @@ private:
    */
   bool FindOutStandingInterest (Ptr<const CCNxName> interest);
 
-  void SendInterestForName (Ptr<CCNxName> name);
+  void SendInterestForName (Ptr<CCNxName> name, int index, bool isHitInterest);
   /**
    * THis is a private method to pick a random name CCNxContentRepository::GetRandomName() convert this into an
    * interest and then send it out of the portal m_consumerPortal. This method is invoked periodically determined by
-   * m_requestInterval. m_requestInterval is an attribute that is set via helper class (CCNxMonitorConsumerHelper) in milliseconds.
+   * m_requestInterval. m_requestInterval is an attribute that is set via helper class (CCNxMonitorHelper) in milliseconds.
    * GenerateTraffic() will continue to request interests until the StopApplication() is invoked.
    */
   void GenerateTraffic ();
+
+  void ProbeTimerCallback (int index, bool hitInterest);
 
   Ptr<CCNxPortal> m_consumerPortal;
   Time m_requestInterval;
@@ -223,7 +231,8 @@ private:
   Ptr<CCNxContentRepository> m_globalContentRepositoryPrefix;
   std::map<int, int> m_countMap;
 
-  std::vector<PacketProbe *> m_probes;
+  std::vector< Ptr<PacketProbe> > m_probes;
+  std::map<const CCNxName, int> m_probeIndexes;
 
   /**
    * Statistics and a show method to display them.
@@ -240,4 +249,4 @@ private:
 }
 }
 
-#endif //CCNS3_CCNxMonitorConsumer_H
+#endif //CCNS3_CCNxMonitor_H

@@ -83,6 +83,7 @@ def build(bld):
         'applications/producer-consumer/ccnx-monitor.cc',
         'applications/producer-consumer/ccnx-producer-helper.cc',
         'applications/producer-consumer/ccnx-consumer-helper.cc',
+        'applications/producer-consumer/ccnx-monitor-helper.cc',
         'applications/producer-consumer/ccnx-content-repository.cc',
         #
         'model/messages/ccnx-buffer.cc',
@@ -212,6 +213,7 @@ def build(bld):
         'applications/producer-consumer/ccnx-producer.h',
         'applications/producer-consumer/ccnx-monitor.h',
         'applications/producer-consumer/ccnx-consumer-helper.h',
+        'applications/producer-consumer/ccnx-monitor-helper.h',
         'applications/producer-consumer/ccnx-producer-helper.h',
         'applications/producer-consumer/ccnx-content-repository.h',
         'model/messages/ccnx-buffer.h',

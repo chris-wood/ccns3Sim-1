@@ -134,6 +134,11 @@ public:
   Ptr <const CCNxName> GetRepositoryPrefix (void) const;
 
   /**
+   * Get a histogram that corresponds to the popularity.
+   */
+  std::vector<int> GetPopularityHistogram(uint32_t cap) const;
+
+  /**
    * This method will return a Content Object with no payload
    */
   Ptr<CCNxContentObject> GetContentObject (Ptr <const CCNxName>contentObjectName);
@@ -153,6 +158,9 @@ private:
 
   typedef std::vector < Ptr <CCNxContentObject> > ContentObjectList;
   ContentObjectList m_contentObjects;
+
+  std::vector<double> pop_vector;
+  double m_maxPopSize;
 
 };
 }

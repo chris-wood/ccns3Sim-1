@@ -60,26 +60,26 @@
 
 using namespace ns3;
 using namespace ns3::ccnx;
-NS_LOG_COMPONENT_DEFINE ("CCNxMonitorConsumer");
-NS_OBJECT_ENSURE_REGISTERED (CCNxMonitorConsumer);
+NS_LOG_COMPONENT_DEFINE ("CCNxMonitor");
+NS_OBJECT_ENSURE_REGISTERED (CCNxMonitor);
 
 static bool printConsStatsHeader = 1;
 TypeId
-CCNxMonitorConsumer::GetTypeId (void)
+CCNxMonitor::GetTypeId (void)
 {
-  static TypeId tid = TypeId ("ns3::ccnx::CCNxApplication::CCNxMonitorConsumer")
+  static TypeId tid = TypeId ("ns3::ccnx::CCNxApplication::CCNxMonitor")
     .SetParent<CCNxApplication> ()
     .SetGroupName ("CCNx")
-    .AddConstructor < CCNxMonitorConsumer > ()
+    .AddConstructor < CCNxMonitor > ()
     .AddAttribute ("RequestInterval",
                    "delay between successive Interests",
                    TimeValue (MilliSeconds (0)),
-                   MakeTimeAccessor (&CCNxMonitorConsumer::m_requestInterval),
+                   MakeTimeAccessor (&CCNxMonitor::m_requestInterval),
                    MakeTimeChecker ());
   return tid;
 }
 
-CCNxMonitorConsumer::CCNxMonitorConsumer ()
+CCNxMonitor::CCNxMonitor ()
 {
   NS_LOG_FUNCTION_NOARGS ();
   m_consumerPortal = Ptr<CCNxPortal> (0);
@@ -92,30 +92,30 @@ CCNxMonitorConsumer::CCNxMonitorConsumer ()
   m_sumSquare = 0;
 }
 
-CCNxMonitorConsumer::~CCNxMonitorConsumer ()
+CCNxMonitor::~CCNxMonitor ()
 {
   // empty
 }
 
 
 void
-CCNxMonitorConsumer::StartApplication (void)
+CCNxMonitor::StartApplication (void)
 {
   NS_LOG_FUNCTION_NOARGS ();
   m_consumerPortal = CCNxPortal::CreatePortal (
       GetNode (), TypeId::LookupByName ("ns3::ccnx::CCNxMessagePortalFactory"));
   m_consumerPortal->SetRecvCallback (
-    MakeCallback (&CCNxMonitorConsumer::ReceiveCallback, this));
+    MakeCallback (&CCNxMonitor::ReceiveCallback, this));
 
-  // m_requestIntervalTimer = Timer (Timer::REMOVE_ON_DESTROY);
-  // m_requestIntervalTimer.SetFunction (&CCNxMonitorConsumer::GenerateTraffic, this);
+  m_requestIntervalTimer = Timer (Timer::REMOVE_ON_DESTROY);
+  // m_requestIntervalTimer.SetFunction (&CCNxMonitor::GenerateTraffic, this);
   // m_requestIntervalTimer.SetDelay (m_requestInterval);
   // m_requestIntervalTimer.ScheduleOnce ();
-  Simulator::Schedule(Seconds(1), &CCNxMonitorConsumer::GenerateTraffic, this);
+  Simulator::Schedule(Seconds(1), &CCNxMonitor::GenerateTraffic, this);
 }
 
 void
-CCNxMonitorConsumer::StopApplication (void)
+CCNxMonitor::StopApplication (void)
 {
   NS_LOG_FUNCTION_NOARGS ();
   if (m_requestIntervalTimer.IsRunning ())
@@ -133,11 +133,11 @@ CCNxMonitorConsumer::StopApplication (void)
       NS_LOG_INFO (
         "All interest expressed by consumer have been honored by the network");
     }
-  CCNxMonitorConsumer::ShowStatistics ();
+  CCNxMonitor::ShowStatistics ();
 }
 
 void
-CCNxMonitorConsumer::SetContentRepository (
+CCNxMonitor::SetContentRepository (
   Ptr<CCNxContentRepository> repositoryPtr)
 {
   NS_LOG_FUNCTION (this << repositoryPtr);
@@ -145,51 +145,49 @@ CCNxMonitorConsumer::SetContentRepository (
 
   // Create the packet probe container
   for (int i = 0; i < m_globalContentRepositoryPrefix->GetContentObjectCount(); i++) {
-      PacketProbe *probe = new PacketProbe(i);
-      probe->m_hitWaiting = false;
-      probe->m_missWaiting = false;
+      Ptr<PacketProbe> probe = Create<PacketProbe>(i);
+      probe->m_hitWaiting = true;
+      probe->m_missWaiting = true;
       probe->m_count = 0;
-      probe->m_hitName = NULL;
-      probe->m_missName = NULL;
+      probe->m_limit = 100;
+
+      for (int i = 0; i < probe->m_limit; i++) {
+          probe->m_hits.push_back(false);
+          probe->m_misses.push_back(false);
+          probe->m_hitName.push_back(NULL);
+          probe->m_missName.push_back(NULL);
+      }
 
       m_probes.push_back(probe);
   }
 }
 
 void
-CCNxMonitorConsumer::InsertOutStandingInterest (Ptr<const CCNxName> interest)
+CCNxMonitor::InsertOutStandingInterest (Ptr<const CCNxName> interest)
 {
   NS_LOG_FUNCTION (this << interest);
-#if 0
-  m_outstandingRequests.insert (interest);
-#else
   m_outstandingRequests[interest].txTime = (uint64_t) Simulator::Now ().GetMilliSeconds ();
-#endif
 }
 
 void
-CCNxMonitorConsumer::RemoveOutStandingInterest (Ptr<const CCNxName> interest)
+CCNxMonitor::RemoveOutStandingInterest (Ptr<const CCNxName> interest)
 {
   NS_LOG_FUNCTION (this << interest);
-#if 0
-  m_outstandingRequests.erase (interest);
-#else
   uint64_t packet_latency = (uint64_t) Simulator::Now ().GetMilliSeconds () - m_outstandingRequests[interest].txTime ;
   m_sum += packet_latency;
   m_sumSquare += packet_latency * packet_latency;
   m_outstandingRequests.erase (interest);
-#endif
 }
 
 bool
-CCNxMonitorConsumer::FindOutStandingInterest (Ptr<const CCNxName> interest)
+CCNxMonitor::FindOutStandingInterest (Ptr<const CCNxName> interest)
 {
   NS_LOG_FUNCTION (this << interest);
   return m_outstandingRequests.find (interest) != m_outstandingRequests.end ();
 }
 
 void
-CCNxMonitorConsumer::ReceiveCallback (Ptr<CCNxPortal> portal)
+CCNxMonitor::ReceiveCallback (Ptr<CCNxPortal> portal)
 {
   NS_LOG_FUNCTION (this << portal);
   Ptr<CCNxPacket> packet;
@@ -199,56 +197,69 @@ CCNxMonitorConsumer::ReceiveCallback (Ptr<CCNxPortal> portal)
   while ((packet = portal->Recv ()))
     {
       NS_LOG_DEBUG (
-        "CCNxMonitorConsumer:Received content response " << *packet << " packet dump");
+        "CCNxMonitor:Received content response " << *packet << " packet dump");
       m_goodContentReceived++;
-      if (packet->GetMessage ()->GetMessageType ()
-          == CCNxMessage::ContentObject)
+      if (packet->GetMessage ()->GetMessageType () == CCNxMessage::ContentObject)
         {
           Ptr<const CCNxName> name = packet->GetMessage ()->GetName ();
           if (FindOutStandingInterest (name))
             {
               NS_LOG_INFO (
-                "CCNxMonitorConsumer:Received content back for Node " << GetNode ()->GetId () << *name);
+                "CCNxMonitor:Received content back for Node " << GetNode ()->GetId () << *name);
               RemoveOutStandingInterest (name);
 
+              // XXX: store the name-to-index mapping somewhere else
+
               // We previously sent an interest for this. Find out which one it is for.
-              for (int i = 0; i < m_probes.size(); i++) {
-                  PacketProbe *probe = m_probes[i];
-                  if (name->Equals(*probe->m_hitName)) {
-                      probe->m_hitTime = receiveTime;
-                      probe->m_hitWaiting = false;
-                  }
-                  if (name->Equals(*probe->m_hitName)) {
-                      probe->m_missTime = receiveTime;
-                      probe->m_missWaiting = false;
+              int probeIndex = m_probeIndexes[*name];
+              Ptr<PacketProbe> probe = m_probes[probeIndex];
+              int index = probe->m_count - 1;
+              if (index < 0) {
+                  break;
+              }
+
+              if (probe->m_hitName[index] != NULL && name->Equals(*probe->m_hitName[index])) {
+                  probe->m_hitTime = receiveTime;
+                  probe->m_hitWaiting = false;
+                //   std::cout << "hit: " << probe->m_hits.size() << " " << probe->m_count - 1 << std::endl;
+                  probe->m_hits[probe->m_count - 1] = true;
+              }
+              if (probe->m_missName[index] != NULL && name->Equals(*probe->m_missName[index])) {
+                  probe->m_missTime = receiveTime;
+                  probe->m_missWaiting = false;
+                //   std::cout << "miss: " << probe->m_misses.size() << " " << probe->m_count - 1 << std::endl;
+                  probe->m_misses[probe->m_count - 1] = true;
+              }
+
+              if (!probe->m_hitWaiting && !probe->m_missWaiting) {
+                  // Bump up the count as needed
+                  // XXX: pass in epsilon as a parameter
+                  int epsilon = 1000;
+                  if (probe->IsCacheHit(epsilon)) {
+                      std::cout << "hit" << std::endl;
+                      m_countMap[probe->m_index]++;
+                  } else {
+                      std::cout << "miss" << std::endl;
                   }
 
-                  if (!probe->m_hitWaiting && !probe->m_missWaiting) {
-                      // Bump up the count as needed
-                      // XXX: pass in epsilon as a parameter
-                      int epsilon = 1000;
-                      if (probe->IsCacheHit(epsilon)) {
-                          m_countMap[probe->m_index]++;
-                      }
-
-                      // Sleep until we can probe for this packet again
-                      // XXX: pass in t_c as a parameter
-                      int t_c = 1;
-                      Simulator::Schedule(Seconds(t_c), &CCNxMonitorConsumer::GenerateTraffic, this);
-                  }
+                  // Sleep until we can probe for this packet again
+                  // XXX: pass in t_c as a parameter
+                  int t_c = 5;
+                //   std::cout << "recording packet probe measurement:" << *name << "   " << *probe->m_hitName[index] << std::endl;
+                  Simulator::Schedule(Seconds(t_c), &CCNxMonitor::GenerateTraffic, this);
               }
             }
           else
             {
               m_contentProcessFails++;
               NS_LOG_ERROR (
-                "CCNxMonitorConsumer:Received wrong content back for Node " << GetNode ()->GetId () << *name);
+                "CCNxMonitor:Received wrong content back for Node " << GetNode ()->GetId () << *name);
             }
         }
       else
         {
           m_contentProcessFails++;
-          NS_LOG_ERROR ("CCNxMonitorConsumer:Bad packet type received " << *packet);
+          NS_LOG_ERROR ("CCNxMonitor:Bad packet type received " << *packet);
         }
     }
 }
@@ -270,36 +281,63 @@ generateRandomString(const int len)
 }
 
 void
-CCNxMonitorConsumer::SendInterestForName (Ptr<CCNxName> name)
+CCNxMonitor::ProbeTimerCallback (int index, bool hitInterest)
 {
-    Ptr<CCNxInterest> interest = Create<CCNxInterest> (name);
-    Ptr<CCNxPacket> packet = CCNxPacket::CreateFromMessage (interest);
-    m_consumerPortal->Send (packet);
-    InsertOutStandingInterest (name);
-    m_requestIntervalTimer.Schedule (m_requestInterval);
-    NS_LOG_DEBUG (
-      "CCNxMonitorConsumer:Sending interest request" << *packet << " packet dump");
+    Ptr<PacketProbe> probe = m_probes[index];
+    int i = probe->m_count - 1;
+    if (hitInterest && !probe->m_hits[i]) {
+        this->SendInterestForName(probe->m_hitName[i], index, hitInterest);
+    } else if (!hitInterest && !probe->m_misses[i]) {
+        this->SendInterestForName(probe->m_missName[i], index, hitInterest);
+    }
 }
 
 
 void
-CCNxMonitorConsumer::GenerateTraffic ()
+CCNxMonitor::SendInterestForName (Ptr<CCNxName> name, int index, bool probe)
+{
+    Ptr<CCNxInterest> interest = Create<CCNxInterest> (name);
+    Ptr<CCNxPacket> packet = CCNxPacket::CreateFromMessage (interest);
+    m_consumerPortal->Send (packet);
+    m_goodInterestsSent++;
+
+    // Schedule timer callback
+    Simulator::Schedule(Seconds(1), &CCNxMonitor::ProbeTimerCallback, this, index, probe);
+    NS_LOG_DEBUG ("CCNxMonitor:Sending interest request" << *packet << " packet dump");
+}
+
+
+void
+CCNxMonitor::GenerateTraffic ()
 {
   NS_LOG_FUNCTION_NOARGS ();
 
+  // XXX: need to walk this entire list and try to generate each one that is not pending!
   Ptr<const CCNxName> name = m_globalContentRepositoryPrefix->GetNameAtIndex (m_count);
   if (name)
     {
       // Build the random segment
       std::string suffix = generateRandomString(32);
+    //   std::cout << "suffix = " << suffix << std::endl;
       Ptr<CCNxNameSegment> suffixSegment = Create<CCNxNameSegment>(CCNxNameSegment_Name, suffix);
 
       // Build the probe interest names
-      PacketProbe *probe = m_probes[m_count];
+      int probeIndex = m_count % m_globalContentRepositoryPrefix->GetContentObjectCount();
+      Ptr<PacketProbe> probe = m_probes[probeIndex];
 
-      probe->m_hitName = Create<CCNxName>(*name);
-      probe->m_missName = Create<CCNxName>(*name);
-      probe->m_missName->AppendSegment(suffixSegment);
+    //   std::cout << *name << std::endl;
+
+    //   probe->m_hitName = NULL;
+    //   std::cout << "probe->m_count =  " << probe->m_count << std::endl;
+      probe->m_hitName[probe->m_count] = Create<CCNxName>(*name);
+      probe->m_missName[probe->m_count] = Create<CCNxName>(*name);
+      probe->m_missName[probe->m_count]->AppendSegment(suffixSegment);
+
+    //   probe->m_missName = NULL;
+    //   probe->m_missName = hitName;
+    //   probe->m_missName = missName;
+
+    //   std::cout << "Probe: " << *probe->m_hitName << std::endl;
 
       // Stamp this packet probe
       Time sendTime = Simulator::Now ();
@@ -310,10 +348,15 @@ CCNxMonitorConsumer::GenerateTraffic ()
       probe->m_missWaiting = true;
 
       // Send both interests
-      this->SendInterestForName(probe->m_hitName);
-      this->SendInterestForName(probe->m_missName);
+      this->SendInterestForName(probe->m_hitName[probe->m_count], probeIndex, true);
+      InsertOutStandingInterest (probe->m_hitName[probe->m_count]);
+      m_probeIndexes[*probe->m_hitName[probe->m_count]] = probeIndex;
+      this->SendInterestForName(probe->m_missName[probe->m_count], probeIndex, false);
+      InsertOutStandingInterest (probe->m_missName[probe->m_count]);
+      m_probeIndexes[*probe->m_missName[probe->m_count]] = probeIndex;
 
-      // Bump the send count
+      // Bump the send counts
+      probe->m_count++;
       m_count++;
     }
   else
@@ -323,12 +366,23 @@ CCNxMonitorConsumer::GenerateTraffic ()
     }
 }
 
+std::vector<int>
+CCNxMonitor::GetObservedHistogram ()
+{
+    std::vector<int> pop;
+
+    for (int i = 0; i < m_globalContentRepositoryPrefix->GetContentObjectCount(); i++) {
+        pop.push_back(m_countMap[i]);
+    }
+
+    return pop;
+}
 
 void
-CCNxMonitorConsumer::ShowStatistics ()
+CCNxMonitor::ShowStatistics ()
 {
 
-  Ptr <Node> node = CCNxMonitorConsumer::GetNode ();
+  Ptr <Node> node = CCNxMonitor::GetNode ();
   if (printConsStatsHeader)
     {
       std::cout << std::endl <<  "Consumer " << " Interest " << "Content   " << \

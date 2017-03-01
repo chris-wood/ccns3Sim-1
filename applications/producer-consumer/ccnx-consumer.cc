@@ -275,5 +275,3 @@ CCNxConsumer::ShowStatistics ()
   std::cout << *m_globalContentRepositoryPrefix->GetRepositoryPrefix () << std::endl;
 
 }
-
-

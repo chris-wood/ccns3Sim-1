@@ -86,6 +86,7 @@ CCNxContentRepository::CreateRepository (Ptr<const CCNxName> repositoryPrefix,
 
   m_repositoryPrefix = repositoryPrefix;
   m_objectSize = contentObjectSize;
+  m_maxPopSize = 0;
   for (uint32_t ii = 0; ii < contentObjectCount; ii++)
     {
       CCNxNameBuilder nameBuilder (*repositoryPrefix);
@@ -96,6 +97,12 @@ CCNxContentRepository::CreateRepository (Ptr<const CCNxName> repositoryPrefix,
           nameBuilder.CreateName ());
       m_contentObjects.push_back (contentObject);
       NS_LOG_DEBUG ("Added name " << *nameBuilder.CreateName () << "to repository " << *repositoryPrefix);
+
+      // Bucketize the Zipf distribution
+      // (-)1.5 is alpha -- XXX: make that a parameter
+      double pop = std::pow((double)(contentObjectCount - ii), (double) 1.5);
+      m_maxPopSize += pop;
+      pop_vector.push_back(pop);
     }
 }
 
@@ -144,9 +151,19 @@ Ptr<const CCNxName>
 CCNxContentRepository::GetRandomName ()
 {
   NS_LOG_FUNCTION (this);
-  uint32_t randIndex = m_uniformRandomVariable->GetInteger (
-      0, (m_contentObjects.size () - 1));
-  Ptr <const CCNxName> randName = m_contentObjects[randIndex]->GetName ();
+  uint32_t randIndex = m_uniformRandomVariable->GetInteger (0, ((long)m_maxPopSize - 1));
+  uint32_t index = 0;
+  long accPop = 0;
+  for (int i = 0; i < pop_vector.size(); i++) {
+      long pop = (long) pop_vector.at(i);
+      accPop += pop;
+      if (randIndex < accPop) {
+          index = i;
+          break;
+      }
+  }
+
+  Ptr <const CCNxName> randName = m_contentObjects[index]->GetName ();
   NS_LOG_DEBUG ("randName is " << *randName);
   return randName;
 }
@@ -158,4 +175,18 @@ CCNxContentRepository::GetNameAtIndex (uint32_t index)
   Ptr <const CCNxName> name = m_contentObjects[index % m_contentObjects.size ()]->GetName ();
   NS_LOG_DEBUG ("name is " << *name);
   return name;
+}
+
+std::vector<int>
+CCNxContentRepository::GetPopularityHistogram (uint32_t cap) const
+{
+    std::vector<int> pop;
+
+    for (int i = 0; i < pop_vector.size(); i++) {
+        double p = pop_vector.at(i) / m_maxPopSize;
+        int fraction = (int)(cap * p);
+        pop.push_back(fraction);
+    }
+
+    return pop;
 }

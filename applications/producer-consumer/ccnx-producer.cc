@@ -154,9 +154,14 @@ CCNxProducer::ReceiveCallback (Ptr<CCNxPortal> portal)
             }
           else
             {
-              m_contentProcessFails++;
-              NS_LOG_ERROR (
-                "CCNxProducer::Producer on node" << GetNode ()->GetId () << "got wrong prefix request " << *name);
+                Ptr<CCNxContentObject> nack = Create<CCNxContentObject>(name);
+                Ptr<CCNxPacket> response = CCNxPacket::CreateFromMessage (
+                    nack);
+                portal->Send (response);
+
+            //   m_contentProcessFails++;
+            //   NS_LOG_ERROR (
+                // "CCNxProducer::Producer on node" << GetNode ()->GetId () << "got wrong prefix request " << *name);
             }
         }
       else
@@ -185,4 +190,3 @@ CCNxProducer::ShowStatistics ()
   std::cout << std::setw (10) << std::left << m_contentProcessFails + m_interestProcessFails;
   std::cout << *m_globalContentRepositoryPrefix->GetRepositoryPrefix () << std::endl;
 }
-

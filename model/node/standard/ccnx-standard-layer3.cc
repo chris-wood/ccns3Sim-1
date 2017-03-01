@@ -537,4 +537,3 @@ CCNxStandardLayer3::AddNeighbor (Address nexthop, Ptr<NetDevice> device)
   NS_LOG_INFO ("AddNeighbor ConnId " << conn->GetConnectionId () << " address " << nexthop);
   return conn;
 }
-

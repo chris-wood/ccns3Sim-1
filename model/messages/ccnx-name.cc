@@ -77,7 +77,11 @@ CCNxName::CCNxName (const std::string &uri)
 CCNxName::CCNxName (const CCNxName &copy)
 {
   // allocates a new vector, but uses the same Ptr<NameSegment> inside the vector.
-  m_segments = copy.m_segments;
+  for (int i = 0; i < copy.m_segments.size(); i++) {
+    Ptr<CCNxNameSegment> copySegment = Create<CCNxNameSegment>(*copy.m_segments.at(i));
+    m_segments.push_back(copySegment);
+  }
+  // m_segments = copy.m_segments;
 }
 
 CCNxName::~CCNxName ()
