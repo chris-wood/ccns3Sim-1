@@ -100,7 +100,7 @@ CCNxContentRepository::CreateRepository (Ptr<const CCNxName> repositoryPrefix,
 
       // Bucketize the Zipf distribution
       // (-)1.5 is alpha -- XXX: make that a parameter
-      double pop = std::pow((double)(contentObjectCount - ii), (double) 1.5);
+      double pop = std::pow((double)(contentObjectCount - ii), (double) 2.5);
       m_maxPopSize += pop;
       pop_vector.push_back(pop);
 
@@ -182,21 +182,28 @@ CCNxContentRepository::GetNameAtIndex (uint32_t index)
   return name;
 }
 
-std::vector<int>
+std::vector<double>
 CCNxContentRepository::GetPopularityHistogram (uint32_t cap) const
 {
-    std::vector<int> pop;
+    std::vector<double> pop;
+
+    double total = 0.0;
+    for (int i = 0; i < m_hitCounts.size(); i++) {
+        total += m_hitCounts.at(i);
+    }
 
     for (int i = 0; i < pop_vector.size(); i++) {
-        double p = pop_vector.at(i) / m_maxPopSize;
-        int fraction = (int)(cap * p);
-        pop.push_back(fraction);
+        // double p = pop_vector.at(i) / m_maxPopSize;
+        // int fraction = (int)(cap * p);
+        // pop.push_back(fraction);
+        // std::cout << total << "," << m_hitCounts.at(i) << "," << m_hitCounts.at(i) / total << std::endl;
+        pop.push_back((((double)m_hitCounts.at(i)) / total) * 100.0);
     }
 
     return pop;
 }
 
-std::vector<int>
+std::vector<double>
 CCNxContentRepository::GetSampledHistogram () const
 {
     return m_hitCounts;

@@ -86,16 +86,16 @@ using namespace ns3::ccnx;
 NS_LOG_COMPONENT_DEFINE ("ccnx-monitor");
 
 static void
-PrintVector(std::vector<int> v)
+PrintVector(std::vector<double> v)
 {
-    for (int i = 0; i < v.size(); i++) {
-        std::cout << v.at(i) << ",";
+    for (int i = 0; i < v.size() - 1; i++) {
+        std::cerr << v.at(i) << ",";
     }
-    std::cout << std::endl;
+    std::cerr << v.at(v.size() - 1) << std::endl;
 }
 
 static void
-RunSimulation (uint32_t nPrefixes, uint32_t totalTime)
+RunSimulation (uint32_t nPrefixes, uint32_t totalTime, uint32_t numberContents, uint32_t cacheSize)
 {
   NS_LOG_INFO ("Number of Prefixes served are = " << nPrefixes );
   Time::SetResolution (Time::NS);
@@ -127,7 +127,7 @@ RunSimulation (uint32_t nPrefixes, uint32_t totalTime)
 
   // Set the contnet store capacity
   CCNxStandardContentStoreFactory contentStoreFactory;
-  contentStoreFactory.Set("ObjectCapacity", IntegerValue(2)); // small...
+  contentStoreFactory.Set("ObjectCapacity", IntegerValue(cacheSize));
   standardHelper.SetContentStoreFactory(contentStoreFactory);
 
   NfpRoutingHelper nfpHelper;
@@ -138,15 +138,23 @@ RunSimulation (uint32_t nPrefixes, uint32_t totalTime)
   nfpHelper.PrintRoutingTableAllEvery (Time (Seconds (5)), trace);
 #endif
   ccnxStack.SetRoutingHelper (nfpHelper);
-
-  ccnxStack.Install (nodes);
-  ccnxStack.AddInterfaces (d0d2);
-  ccnxStack.AddInterfaces (d1d2);
+  ccnxStack.Install (nodes.Get (2));
+  ccnxStack.Install (nodes.Get (3));
   ccnxStack.AddInterfaces (d3d2);
 
+  // Do NOT install a cache on the end nodes
+  CCNxStackHelper nodeStackHelper;
+  nodeStackHelper.SetRoutingHelper (nfpHelper);
+  nodeStackHelper.Install (nodes.Get (0));
+  nodeStackHelper.Install (nodes.Get (1));
+  ccnxStack.AddInterfaces (d0d2);
+  ccnxStack.AddInterfaces (d1d2);
+  // nodeStackHelper.Install (nodes.Get (0));
+  // nodeStackHelper.Install (nodes.Get (1));
+
   const std::string pre = "ccnx:/name=simple/name=producer";
-  uint32_t size = 64;
-  uint32_t count = 10;
+  uint32_t size = 256; // size (in bytes) of each content -- not important here
+  uint32_t count = numberContents;
   Ptr <CCNxContentRepository> repo = Create <CCNxContentRepository> (Create <CCNxName> (pre), size, count);
   CCNxProducerHelper producerHelper (repo);
   ApplicationContainer pn0 = producerHelper.Install (nodes.Get (3));
@@ -154,7 +162,7 @@ RunSimulation (uint32_t nPrefixes, uint32_t totalTime)
   pn0.Stop (Seconds (totalTime + 1));
 
   CCNxConsumerHelper consumerHelper (repo);
-  consumerHelper.SetAttribute ("RequestInterval", TimeValue (MilliSeconds (50)));
+  consumerHelper.SetAttribute ("RequestInterval", TimeValue (Seconds (1))); // request once per second
   ApplicationContainer cn3 = consumerHelper.Install (nodes.Get (0));
   cn3.Start (Seconds (1.0));
   cn3.Stop (Seconds (totalTime));
@@ -173,9 +181,9 @@ RunSimulation (uint32_t nPrefixes, uint32_t totalTime)
 
   int total = 100;
   Ptr<CCNxMonitor> monitor = DynamicCast<CCNxMonitor>(monitorContainer.Get(0));
-  std::vector<int> observedHistogram = monitor->GetObservedHistogram();
-  std::vector<int> actualHistogram = repo->GetPopularityHistogram(total);
-  std::vector<int> repoSampledHistogram = repo->GetSampledHistogram();
+  std::vector<double> observedHistogram = monitor->GetObservedHistogram();
+  std::vector<double> actualHistogram = repo->GetPopularityHistogram(total);
+  std::vector<double> repoSampledHistogram = repo->GetSampledHistogram();
 
   PrintVector(observedHistogram);
   PrintVector(actualHistogram);
@@ -187,11 +195,15 @@ main (int argc, char *argv[])
 {
   uint32_t nPrefixes = 2;
   uint32_t totalTime = 500;
+  uint32_t numberContents = 10;
+  uint32_t cacheSize = numberContents - 1;
   CommandLine cmd;
   cmd.AddValue ("nPrefixes", "Number of Prefixes to simulate", nPrefixes);
   cmd.AddValue ("time", "Total simulation time", totalTime);
+  cmd.AddValue ("numberContents", "Number of contents", numberContents);
+  cmd.AddValue ("cacheSize", "Number of contents", cacheSize);
   cmd.Parse (argc, argv);
 
-  RunSimulation (nPrefixes, totalTime);
+  RunSimulation (nPrefixes, totalTime, numberContents, cacheSize);
   return 0;
 }

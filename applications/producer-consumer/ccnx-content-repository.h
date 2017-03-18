@@ -136,12 +136,12 @@ public:
   /**
    * Get a histogram that corresponds to the popularity.
    */
-  std::vector<int> GetPopularityHistogram(uint32_t cap) const;
+  std::vector<double> GetPopularityHistogram(uint32_t cap) const;
 
   /**
    * Get the histogram of hit counts
    */
-  std::vector<int> GetSampledHistogram () const;
+  std::vector<double> GetSampledHistogram () const;
 
   /**
    * This method will return a Content Object with no payload
@@ -165,7 +165,7 @@ private:
   ContentObjectList m_contentObjects;
 
   std::vector<double> pop_vector;
-  std::vector<int> m_hitCounts;
+  std::vector<double> m_hitCounts;
   double m_maxPopSize;
 
 };

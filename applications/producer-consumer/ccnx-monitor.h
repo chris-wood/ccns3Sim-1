@@ -110,11 +110,13 @@ public:
         Time hitDelta = m_hitTime - m_sendTime;
         Time missDelta = m_missTime - m_sendTime;
         Time delta = hitDelta - missDelta;
-        int64_t deltaMillis = delta.GetMilliSeconds();
+        int deltaMillis = delta.GetMilliSeconds();
+
         if (deltaMillis < 0) {
             deltaMillis *= -1;
         }
-        return deltaMillis < epsilonMillis;
+
+        return deltaMillis >= epsilonMillis;
     };
 };
 
@@ -167,7 +169,7 @@ public:
     */
   void SetContentRepository (Ptr<CCNxContentRepository> repositoryPtr);
 
-  std::vector<int> GetObservedHistogram();
+  std::vector<double> GetObservedHistogram();
 
 private:
   /**

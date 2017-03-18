@@ -233,14 +233,14 @@ CCNxMonitor::ReceiveCallback (Ptr<CCNxPortal> portal)
               if (!probe->m_hitWaiting && !probe->m_missWaiting) {
                   // Bump up the count as needed
                   // XXX: pass in epsilon as a parameter
-                  int epsilon = 5;
+                  int epsilon = 1;
                   if (probe->IsCacheHit(epsilon)) {
                       m_countMap[probe->m_index]++;
                   }
 
                   // Sleep until we can probe for this packet again
                   // XXX: pass in t_c as a parameter
-                  double t_c = 1.0;
+                  double t_c = 2.0;
                   Simulator::Schedule(Seconds(t_c), &CCNxMonitor::GenerateTraffic, this);
               }
             }
@@ -355,13 +355,13 @@ CCNxMonitor::GenerateTraffic ()
     }
 }
 
-std::vector<int>
+std::vector<double>
 CCNxMonitor::GetObservedHistogram ()
 {
-    std::vector<int> pop;
+    std::vector<double> pop;
 
     for (int i = 0; i < m_globalContentRepositoryPrefix->GetContentObjectCount(); i++) {
-        pop.push_back(m_countMap[i]);
+        pop.push_back((double)m_countMap[i]);
     }
 
     return pop;
