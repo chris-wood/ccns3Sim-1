@@ -95,7 +95,7 @@ PrintVector(std::vector<int> v)
 }
 
 static void
-RunSimulation (uint32_t nPrefixes)
+RunSimulation (uint32_t nPrefixes, uint32_t totalTime)
 {
   NS_LOG_INFO ("Number of Prefixes served are = " << nPrefixes );
   Time::SetResolution (Time::NS);
@@ -127,7 +127,7 @@ RunSimulation (uint32_t nPrefixes)
 
   // Set the contnet store capacity
   CCNxStandardContentStoreFactory contentStoreFactory;
-  contentStoreFactory.Set("ObjectCapacity", IntegerValue(1)); // small...
+  contentStoreFactory.Set("ObjectCapacity", IntegerValue(2)); // small...
   standardHelper.SetContentStoreFactory(contentStoreFactory);
 
   NfpRoutingHelper nfpHelper;
@@ -145,32 +145,27 @@ RunSimulation (uint32_t nPrefixes)
   ccnxStack.AddInterfaces (d3d2);
 
   const std::string pre = "ccnx:/name=simple/name=producer";
-  uint32_t size = (64) % 1504;
-  if (size < 64)
-    {
-      size = 64;
-    }
+  uint32_t size = 64;
   uint32_t count = 10;
-//   sprintf (fix, "name=size%dcount%d", size, count);
   Ptr <CCNxContentRepository> repo = Create <CCNxContentRepository> (Create <CCNxName> (pre), size, count);
   CCNxProducerHelper producerHelper (repo);
   ApplicationContainer pn0 = producerHelper.Install (nodes.Get (3));
   pn0.Start (Seconds (0.0));
-  pn0.Stop (Seconds (101.0));
+  pn0.Stop (Seconds (totalTime + 1));
 
   CCNxConsumerHelper consumerHelper (repo);
   consumerHelper.SetAttribute ("RequestInterval", TimeValue (MilliSeconds (50)));
   ApplicationContainer cn3 = consumerHelper.Install (nodes.Get (0));
   cn3.Start (Seconds (1.0));
-  cn3.Stop (Seconds (100.0));
+  cn3.Stop (Seconds (totalTime));
 
   CCNxMonitorHelper monitorHelper (repo);
   monitorHelper.SetAttribute ("RequestInterval", TimeValue (MilliSeconds (50)));
   ApplicationContainer monitorContainer = monitorHelper.Install (nodes.Get (1));
   monitorContainer.Start (Seconds (1.0));
-  monitorContainer.Stop (Seconds (100.0));
+  monitorContainer.Stop (Seconds (totalTime));
 
-  Simulator::Stop (Seconds (99));
+  Simulator::Stop (Seconds (totalTime - 1));
 
   // Run the simulator and execute all the events
   Simulator::Run ();
@@ -180,19 +175,23 @@ RunSimulation (uint32_t nPrefixes)
   Ptr<CCNxMonitor> monitor = DynamicCast<CCNxMonitor>(monitorContainer.Get(0));
   std::vector<int> observedHistogram = monitor->GetObservedHistogram();
   std::vector<int> actualHistogram = repo->GetPopularityHistogram(total);
+  std::vector<int> repoSampledHistogram = repo->GetSampledHistogram();
 
   PrintVector(observedHistogram);
   PrintVector(actualHistogram);
+  PrintVector(repoSampledHistogram);
 }
 
 int
 main (int argc, char *argv[])
 {
   uint32_t nPrefixes = 2;
+  uint32_t totalTime = 500;
   CommandLine cmd;
   cmd.AddValue ("nPrefixes", "Number of Prefixes to simulate", nPrefixes);
+  cmd.AddValue ("time", "Total simulation time", totalTime);
   cmd.Parse (argc, argv);
 
-  RunSimulation (nPrefixes);
+  RunSimulation (nPrefixes, totalTime);
   return 0;
 }

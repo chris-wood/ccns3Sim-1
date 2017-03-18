@@ -103,6 +103,9 @@ CCNxContentRepository::CreateRepository (Ptr<const CCNxName> repositoryPrefix,
       double pop = std::pow((double)(contentObjectCount - ii), (double) 1.5);
       m_maxPopSize += pop;
       pop_vector.push_back(pop);
+
+      // Initialize the hit count to 0
+      m_hitCounts.push_back(0);
     }
 }
 
@@ -163,6 +166,8 @@ CCNxContentRepository::GetRandomName ()
       }
   }
 
+  m_hitCounts[index]++;
+
   Ptr <const CCNxName> randName = m_contentObjects[index]->GetName ();
   NS_LOG_DEBUG ("randName is " << *randName);
   return randName;
@@ -189,4 +194,10 @@ CCNxContentRepository::GetPopularityHistogram (uint32_t cap) const
     }
 
     return pop;
+}
+
+std::vector<int>
+CCNxContentRepository::GetSampledHistogram () const
+{
+    return m_hitCounts;
 }

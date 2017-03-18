@@ -146,8 +146,8 @@ CCNxMonitor::SetContentRepository (
   // Create the packet probe container
   for (int i = 0; i < m_globalContentRepositoryPrefix->GetContentObjectCount(); i++) {
       Ptr<PacketProbe> probe = Create<PacketProbe>(i);
-      probe->m_hitWaiting = true;
-      probe->m_missWaiting = true;
+      probe->m_hitWaiting = false;
+      probe->m_missWaiting = false;
       probe->m_count = 0;
       probe->m_limit = 100;
 
@@ -221,30 +221,26 @@ CCNxMonitor::ReceiveCallback (Ptr<CCNxPortal> portal)
               if (probe->m_hitName[index] != NULL && name->Equals(*probe->m_hitName[index])) {
                   probe->m_hitTime = receiveTime;
                   probe->m_hitWaiting = false;
-                //   std::cout << "hit: " << probe->m_hits.size() << " " << probe->m_count - 1 << std::endl;
                   probe->m_hits[probe->m_count - 1] = true;
               }
+
               if (probe->m_missName[index] != NULL && name->Equals(*probe->m_missName[index])) {
                   probe->m_missTime = receiveTime;
                   probe->m_missWaiting = false;
-                //   std::cout << "miss: " << probe->m_misses.size() << " " << probe->m_count - 1 << std::endl;
                   probe->m_misses[probe->m_count - 1] = true;
               }
 
               if (!probe->m_hitWaiting && !probe->m_missWaiting) {
                   // Bump up the count as needed
                   // XXX: pass in epsilon as a parameter
-                  int epsilon = 1000;
+                  int epsilon = 5;
                   if (probe->IsCacheHit(epsilon)) {
-                      std::cout << "hit" << std::endl;
                       m_countMap[probe->m_index]++;
-                  } else {
-                      std::cout << "miss" << std::endl;
                   }
 
                   // Sleep until we can probe for this packet again
                   // XXX: pass in t_c as a parameter
-                  int t_c = 1; // XXX: problem.
+                  double t_c = 1.0;
                   Simulator::Schedule(Seconds(t_c), &CCNxMonitor::GenerateTraffic, this);
               }
             }
@@ -317,26 +313,20 @@ CCNxMonitor::GenerateTraffic ()
     {
       // Build the random segment
       std::string suffix = generateRandomString(32);
-    //   std::cout << "suffix = " << suffix << std::endl;
       Ptr<CCNxNameSegment> suffixSegment = Create<CCNxNameSegment>(CCNxNameSegment_Name, suffix);
 
       // Build the probe interest names
       int probeIndex = m_count % m_globalContentRepositoryPrefix->GetContentObjectCount();
       Ptr<PacketProbe> probe = m_probes[probeIndex];
 
-    //   std::cout << *name << std::endl;
+      if (probe->m_hitWaiting || probe->m_missWaiting) {
+          // If there's an outstanding query, dont' send another one
+          return;
+      }
 
-    //   probe->m_hitName = NULL;
-    //   std::cout << "probe->m_count =  " << probe->m_count << std::endl;
       probe->m_hitName[probe->m_count] = Create<CCNxName>(*name);
       probe->m_missName[probe->m_count] = Create<CCNxName>(*name);
       probe->m_missName[probe->m_count]->AppendSegment(suffixSegment);
-
-    //   probe->m_missName = NULL;
-    //   probe->m_missName = hitName;
-    //   probe->m_missName = missName;
-
-    //   std::cout << "Probe: " << *probe->m_hitName << std::endl;
 
       // Stamp this packet probe
       Time sendTime = Simulator::Now ();

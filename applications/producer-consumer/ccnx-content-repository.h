@@ -139,6 +139,11 @@ public:
   std::vector<int> GetPopularityHistogram(uint32_t cap) const;
 
   /**
+   * Get the histogram of hit counts
+   */
+  std::vector<int> GetSampledHistogram () const;
+
+  /**
    * This method will return a Content Object with no payload
    */
   Ptr<CCNxContentObject> GetContentObject (Ptr <const CCNxName>contentObjectName);
@@ -160,6 +165,7 @@ private:
   ContentObjectList m_contentObjects;
 
   std::vector<double> pop_vector;
+  std::vector<int> m_hitCounts;
   double m_maxPopSize;
 
 };

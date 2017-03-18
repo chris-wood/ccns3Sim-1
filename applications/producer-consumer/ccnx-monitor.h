@@ -169,8 +169,6 @@ public:
 
   std::vector<int> GetObservedHistogram();
 
-  void GetObservedHistogram();
-
 private:
   /**
    *
