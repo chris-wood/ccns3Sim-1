@@ -1,6 +1,6 @@
-times = [1000] #, 2000]
-num_contents = [10] #, 25, 50, 100, 1000]
-cache_fractions = [0.25] #, 0.5, 1.0, 2.0, 5.0]
+times = [1000, 2000]
+num_contents = [10, 25, 50, 100, 1000]
+cache_fractions = [0.25, 0.5, 1.0, 2.0, 5.0]
 
 times.each{|time|
     num_contents.each{|n|
